@@ -257,12 +257,7 @@ public abstract class PlayerListMixin implements PlayerListBridge {
         return entity;
     }
 
-    public ServerPlayer respawn(ServerPlayer playerIn, ServerLevel worldIn, boolean flag, Location location, boolean avoidSuffocation, PlayerRespawnEvent.RespawnReason respawnReason) {
-        if (respawnReason == null && location != null) {
-            if (ForgeEventFactory.onTravelToDimension(playerIn, worldIn.dimension())) {
-                return null;
-            }
-        }
+    public ServerPlayer respawn(ServerPlayer playerIn, ServerLevel worldIn, boolean flag, Location location, boolean avoidSuffocation) {
         playerIn.stopRiding();
         this.players.remove(playerIn);
         playerIn.getLevel().removePlayerImmediately(playerIn, Entity.RemovalReason.DISCARDED);
