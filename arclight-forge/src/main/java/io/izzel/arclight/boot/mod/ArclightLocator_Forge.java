@@ -35,7 +35,6 @@ public class ArclightLocator_Forge implements IModLocator {
 
     @Override
     public List<ModFileOrException> scanMods() {
-        ArclightJarInJarAdaptor.inject();
         return List.of(new ModFileOrException(arclight, null));
     }
 
