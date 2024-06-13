@@ -719,13 +719,7 @@ public abstract class ServerPlayNetHandlerMixin implements ServerPlayNetHandlerB
         switch (packetplayinblockdig_enumplayerdigtype) {
             case SWAP_ITEM_WITH_OFFHAND: {
                 if (!this.player.isSpectator()) {
-                    // BetterCombat mixin compatibility
-                    // https://github.com/ZsoltMolnarrr/BetterCombat/blob/9090f08faf4a3e51256c8a7a13af94a80b6128c0/common/src/main/java/net/bettercombat/mixin/ServerPlayNetworkHandlerMixin.java
-                    ItemStack offhandStack = this.player.getItemInHand(InteractionHand.OFF_HAND);
-                    var event = ForgeEventFactory.onLivingSwapHandItems(this.player);
-                    if (event.isCanceled()) return;
-                    ItemStack itemstack = event.getItemSwappedToMainHand();
-                    ItemStack originMainHand = event.getItemSwappedToOffHand();
+                    ItemStack itemstack = this.player.getItemInHand(InteractionHand.OFF_HAND);
                     CraftItemStack mainHand = CraftItemStack.asCraftMirror(itemstack);
                     CraftItemStack offHand = CraftItemStack.asCraftMirror(this.player.getItemInHand(InteractionHand.MAIN_HAND));
                     PlayerSwapHandItemsEvent swapItemsEvent = new PlayerSwapHandItemsEvent(this.getCraftPlayer(), mainHand.clone(), offHand.clone());
