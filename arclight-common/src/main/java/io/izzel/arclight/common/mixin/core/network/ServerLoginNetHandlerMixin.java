@@ -5,9 +5,7 @@ import com.mojang.authlib.properties.Property;
 import io.izzel.arclight.common.bridge.core.network.NetworkManagerBridge;
 import io.izzel.arclight.common.bridge.core.server.MinecraftServerBridge;
 import io.izzel.arclight.common.bridge.core.server.management.PlayerListBridge;
-import io.izzel.arclight.common.mod.util.VelocitySupport;
 import net.minecraft.DefaultUncaughtExceptionHandler;
-import net.minecraft.Util;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.Connection;
 import net.minecraft.network.PacketSendListener;
@@ -18,15 +16,6 @@ import net.minecraft.network.protocol.login.ClientboundHelloPacket;
 import net.minecraft.network.protocol.login.ClientboundLoginCompressionPacket;
 import net.minecraft.network.protocol.login.ServerboundHelloPacket;
 import net.minecraft.network.protocol.login.ServerboundKeyPacket;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.login.ClientboundCustomQueryPacket;
-import net.minecraft.network.protocol.login.ClientboundHelloPacket;
-import net.minecraft.network.protocol.login.ServerboundCustomQueryAnswerPacket;
-import net.minecraft.network.protocol.login.ServerboundHelloPacket;
-import net.minecraft.network.protocol.login.ServerboundKeyPacket;
-import net.minecraft.network.protocol.login.ServerboundLoginAcknowledgedPacket;
-import net.minecraft.network.protocol.login.custom.DiscardedQueryAnswerPayload;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerLoginPacketListenerImpl;
@@ -44,12 +33,6 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import javax.annotation.Nullable;
 import javax.crypto.Cipher;
@@ -60,7 +43,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.security.PrivateKey;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static net.minecraft.server.network.ServerLoginPacketListenerImpl.isValidUsername;
@@ -81,11 +63,6 @@ public abstract class ServerLoginNetHandlerMixin {
     @Shadow private ServerPlayer delayedAcceptPlayer;
     @Shadow @Final private byte[] challenge;
     // @formatter:on
-
-    private static final java.util.regex.Pattern PROP_PATTERN = java.util.regex.Pattern.compile("\\w{0,16}");
-
-    private ServerPlayer player;
-    @Unique private int arclight$velocityLoginId = -1;
 
     public void disconnect(final String s) {
         this.disconnect(Component.literal(s));
@@ -157,12 +134,6 @@ public abstract class ServerLoginNetHandlerMixin {
                 this.state = ServerLoginPacketListenerImpl.State.KEY;
                 this.connection.send(new ClientboundHelloPacket("", this.server.getKeyPair().getPublic().getEncoded(), this.challenge));
             } else {
-                if (VelocitySupport.isEnabled()) {
-                    this.arclight$velocityLoginId = ThreadLocalRandom.current().nextInt();
-                    var packet = new ClientboundCustomQueryPacket(this.arclight$velocityLoginId, VelocitySupport.createPacket());
-                    this.connection.send(packet);
-                    return;
-                }
                 class Handler extends Thread {
 
                     Handler() {
@@ -175,8 +146,8 @@ public abstract class ServerLoginNetHandlerMixin {
                             initUUID();
                             arclight$preLogin();
                         } catch (Exception ex) {
-                            disconnect(Component.translatable("multiplayer.disconnect.unverified_username"));
-                            LOGGER.warn("Exception verifying {} ", requestedUsername, ex);
+                            disconnect("Failed to verify username!");
+                            LOGGER.warn("Exception verifying {} ", gameProfile.getName(), ex);
                         }
                     }
                 }
@@ -260,7 +231,8 @@ public abstract class ServerLoginNetHandlerMixin {
                         disconnect(Component.translatable("multiplayer.disconnect.authservers_down"));
                         LOGGER.error("Couldn't verify username because servers are unavailable");
                     }
-                } 
+                }
+
             }
 
             @Nullable
@@ -274,65 +246,7 @@ public abstract class ServerLoginNetHandlerMixin {
         thread.start();
     }
 
-    @Inject(method = "handleCustomQueryPacket", cancellable = true, at = @At("HEAD"))
-    private void arclight$modernForwardReply(ServerboundCustomQueryAnswerPacket packet, CallbackInfo ci) {
-        if (VelocitySupport.isEnabled() && packet.transactionId() == this.arclight$velocityLoginId) {
-            if (!(packet.payload() instanceof DiscardedQueryAnswerPayload payload && payload.data() != null)) {
-                this.disconnect("This server requires you to connect with Velocity.");
-                ci.cancel();
-                return;
-            }
-            var buf = payload.data().readNullable(r -> {
-                int i = r.readableBytes();
-                if (i >= 0 && i <= 1048576) {
-                    return new FriendlyByteBuf(r.readBytes(i));
-                } else {
-                    throw new IllegalArgumentException("Payload may not be larger than 1048576 bytes");
-                }
-            });
-            if (buf == null) {
-                this.disconnect("This server requires you to connect with Velocity.");
-                ci.cancel();
-                return;
-            }
-
-            if (!VelocitySupport.checkIntegrity(buf)) {
-                this.disconnect("Unable to verify player details");
-                ci.cancel();
-                return;
-            }
-
-            int version = buf.readVarInt();
-            if (version > VelocitySupport.MAX_SUPPORTED_FORWARDING_VERSION) {
-                throw new IllegalStateException("Unsupported forwarding version " + version + ", wanted upto " + VelocitySupport.MAX_SUPPORTED_FORWARDING_VERSION);
-            }
-            java.net.SocketAddress listening = this.connection.getRemoteAddress();
-            int port = 0;
-            if (listening instanceof java.net.InetSocketAddress) {
-                port = ((java.net.InetSocketAddress) listening).getPort();
-            }
-            this.connection.address = new java.net.InetSocketAddress(VelocitySupport.readAddress(buf), port);
-            this.authenticatedProfile = VelocitySupport.createProfile(buf);
-
-            // Proceed with login
-            Util.backgroundExecutor().execute(() -> {
-                try {
-                    this.arclight$preLogin(this.authenticatedProfile);
-                } catch (Exception ex) {
-                    disconnect(Component.translatable("multiplayer.disconnect.unverified_username"));
-                    LOGGER.warn("Exception verifying {} ", this.authenticatedProfile.getName(), ex);
-                }
-            });
-            ci.cancel();
-        }
-    }
-
-    @Unique
-    void arclight$preLogin(GameProfile gameProfile) throws Exception {
-        if (this.arclight$velocityLoginId == -1 && VelocitySupport.isEnabled()) {
-            disconnect("This server requires you to connect with Velocity.");
-            return;
-        }
+    void arclight$preLogin() throws Exception {
         String playerName = gameProfile.getName();
         InetAddress address = ((InetSocketAddress) connection.getRemoteAddress()).getAddress();
         UUID uniqueId = gameProfile.getId();

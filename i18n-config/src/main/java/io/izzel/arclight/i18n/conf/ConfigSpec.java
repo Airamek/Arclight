@@ -21,9 +21,6 @@ public class ConfigSpec {
     @Setting("async-catcher")
     private AsyncCatcherSpec asyncCatcherSpec;
 
-    @Setting("velocity")
-    private VelocitySpec velocitySpec;
-
     public int getVersion() {
         return version;
     }
@@ -42,9 +39,5 @@ public class ConfigSpec {
 
     public AsyncCatcherSpec getAsyncCatcher() {
         return asyncCatcherSpec;
-    }
-
-    public VelocitySpec getVelocity() {
-        return velocitySpec;
     }
 }
