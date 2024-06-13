@@ -49,7 +49,7 @@ public abstract class ThrownEggMixin extends ThrowableProjectileMixin {
             }
             if (hatching) {
                 for (int i = 0; i < b0; ++i) {
-                    Entity entity = ((WorldBridge) this.level()).bridge$getWorld().makeEntity(new Location(((WorldBridge) this.level()).bridge$getWorld(), this.getX(), this.getY(), this.getZ(), this.getYRot(), 0.0f), hatchingType.getEntityClass());
+                    Entity entity = ((WorldBridge) this.level).bridge$getWorld().createEntity(new Location(((WorldBridge) this.level).bridge$getWorld(), this.getX(), this.getY(), this.getZ(), this.getYRot(), 0.0f), hatchingType.getEntityClass());
                     // Let's do: Meadow mixin compatibility https://github.com/IzzelAliz/Arclight/issues/1149
                     if (entity instanceof Chicken) {
                         Chicken chicken = (Chicken) entity;
