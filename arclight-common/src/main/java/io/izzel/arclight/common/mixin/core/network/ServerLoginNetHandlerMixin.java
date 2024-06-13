@@ -23,7 +23,6 @@ import net.minecraft.util.Crypt;
 import net.minecraft.util.CryptException;
 import net.minecraftforge.fml.util.thread.SidedThreadGroups;
 import net.minecraftforge.network.ConnectionType;
-import net.minecraftforge.network.NetworkContext;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.filters.NetworkFilters;
 import org.apache.commons.lang3.Validate;
